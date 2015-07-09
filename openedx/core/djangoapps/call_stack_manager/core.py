@@ -118,7 +118,7 @@ def donottrack(*classes_not_to_be_tracked):
         wrapped function
     """
     @wrapt.decorator
-    def real_donottrack(wrapped, instance, args, kwargs):
+    def real_donottrack(wrapped, instance, args, kwargs):  # pylint: disable=W0613
         """takes function to be decorated and returns wrapped function
 
         Args:
