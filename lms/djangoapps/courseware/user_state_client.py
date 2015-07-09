@@ -17,6 +17,10 @@ from django.contrib.auth.models import User
 from xblock.fields import Scope, ScopeBase
 from courseware.models import StudentModule, StudentModuleHistory
 from edx_user_state_client.interface import XBlockUserStateClient, XBlockUserState
+from contracts import contract, new_contract
+from opaque_keys.edx.keys import UsageKey
+from openedx.core.djangoapps.call_stack_manager.core import donottrack
+new_contract('UsageKey', UsageKey)
 
 
 class DjangoXBlockUserStateClient(XBlockUserStateClient):
@@ -69,6 +73,78 @@ class DjangoXBlockUserStateClient(XBlockUserStateClient):
         """
         self.user = user
 
+    @donottrack(StudentModule, StudentModuleHistory)
+    def get(self, username, block_key, scope=Scope.user_state, fields=None):
+        """
+        Retrieve the stored XBlock state for a single xblock usage.
+
+        Arguments:
+            username: The name of the user whose state should be retrieved
+            block_key (UsageKey): The UsageKey identifying which xblock state to load.
+            scope (Scope): The scope to load data from
+            fields: A list of field values to retrieve. If None, retrieve all stored fields.
+
+        Returns:
+            dict: A dictionary mapping field names to values
+
+        Raises:
+            DoesNotExist if no entry is found.
+        """
+        try:
+            _usage_key, state = next(self.get_many(username, [block_key], scope, fields=fields))
+        except StopIteration:
+            raise self.DoesNotExist()
+
+        return state
+
+    @donottrack(StudentModule, StudentModuleHistory)
+    def set(self, username, block_key, state, scope=Scope.user_state):
+        """
+        Set fields for a particular XBlock.
+
+        Arguments:
+            username: The name of the user whose state should be retrieved
+            block_key (UsageKey): The UsageKey identifying which xblock state to update.
+            state (dict): A dictionary mapping field names to values
+            scope (Scope): The scope to load data from
+        """
+        self.set_many(username, {block_key: state}, scope)
+
+    @donottrack(StudentModule, StudentModuleHistory)
+    def delete(self, username, block_key, scope=Scope.user_state, fields=None):
+        """
+        Delete the stored XBlock state for a single xblock usage.
+
+        Arguments:
+            username: The name of the user whose state should be deleted
+            block_key (UsageKey): The UsageKey identifying which xblock state to delete.
+            scope (Scope): The scope to delete data from
+            fields: A list of fields to delete. If None, delete all stored fields.
+        """
+        return self.delete_many(username, [block_key], scope, fields=fields)
+
+    @donottrack(StudentModule, StudentModuleHistory)
+    def get_mod_date(self, username, block_key, scope=Scope.user_state, fields=None):
+        """
+        Get the last modification date for fields from the specified blocks.
+
+        Arguments:
+            username: The name of the user whose state should be deleted
+            block_key (UsageKey): The UsageKey identifying which xblock modification dates to retrieve.
+            scope (Scope): The scope to retrieve from.
+            fields: A list of fields to query. If None, delete all stored fields.
+                Specific implementations are free to return the same modification date
+                for all fields, if they don't store changes individually per field.
+                Implementations may omit fields for which data has not been stored.
+
+        Returns: list a dict of {field_name: modified_date} for each selected field.
+        """
+        results = self.get_mod_date_many(username, [block_key], scope, fields=fields)
+        return {
+            field: date for (_, field, date) in results
+        }
+
+    @donottrack(StudentModule, StudentModuleHistory)
     def _get_student_modules(self, username, block_keys):
         """
         Retrieve the :class:`~StudentModule`s for the supplied ``username`` and ``block_keys``.
@@ -116,6 +192,7 @@ class DjangoXBlockUserStateClient(XBlockUserStateClient):
             sample_rate=self.API_DATADOG_SAMPLE_RATE,
         )
 
+    @donottrack(StudentModule, StudentModuleHistory)
     def get_many(self, username, block_keys, scope=Scope.user_state, fields=None):
         """
         Retrieve the stored XBlock state for the specified XBlock usages.
@@ -163,6 +240,7 @@ class DjangoXBlockUserStateClient(XBlockUserStateClient):
         self._ddog_histogram(evt_time, 'get_many.blks_out', block_count)
         self._ddog_histogram(evt_time, 'get_many.blks_size', state_length)
 
+    @donottrack(StudentModule, StudentModuleHistory)
     def set_many(self, username, block_keys_to_state, scope=Scope.user_state):
         """
         Set fields for a particular XBlock.
@@ -237,6 +315,7 @@ class DjangoXBlockUserStateClient(XBlockUserStateClient):
         # Event for the entire set_many call.
         self._ddog_histogram(evt_time, 'set_many.blks_updated', len(block_keys_to_state))
 
+    @donottrack(StudentModule, StudentModuleHistory)
     def delete_many(self, username, block_keys, scope=Scope.user_state, fields=None):
         """
         Delete the stored XBlock state for a many xblock usages.
@@ -265,6 +344,35 @@ class DjangoXBlockUserStateClient(XBlockUserStateClient):
             # We just read this object, so we know that we can do an update
             student_module.save(force_update=True)
 
+
+    @donottrack(StudentModule, StudentModuleHistory)
+    def get_mod_date_many(self, username, block_keys, scope=Scope.user_state, fields=None):
+        """
+        Get the last modification date for fields from the specified blocks.
+
+        Arguments:
+            username: The name of the user whose state should be deleted
+            block_key (UsageKey): The UsageKey identifying which xblock modification dates to retrieve.
+            scope (Scope): The scope to retrieve from.
+            fields: A list of fields to query. If None, delete all stored fields.
+                Specific implementations are free to return the same modification date
+                for all fields, if they don't store changes individually per field.
+                Implementations may omit fields for which data has not been stored.
+
+        Yields: tuples of (block, field_name, modified_date) for each selected field.
+        """
+        if scope != Scope.user_state:
+            raise ValueError("Only Scope.user_state is supported")
+
+        student_modules = self._get_student_modules(username, block_keys)
+        for student_module, usage_key in student_modules:
+            if student_module.state is None:
+                continue
+
+            for field in json.loads(student_module.state):
+                yield (usage_key, field, student_module.modified)
+
+    @donottrack(StudentModule, StudentModuleHistory)
     def get_history(self, username, block_key, scope=Scope.user_state):
         """
         Retrieve history of state changes for a given block for a given
@@ -319,6 +427,7 @@ class DjangoXBlockUserStateClient(XBlockUserStateClient):
 
             yield XBlockUserState(username, block_key, state, history_entry.created, scope)
 
+    @donottrack(StudentModule, StudentModuleHistory)
     def iter_all_for_block(self, block_key, scope=Scope.user_state, batch_size=None):
         """
         You get no ordering guarantees. Fetching will happen in batch_size
@@ -329,6 +438,7 @@ class DjangoXBlockUserStateClient(XBlockUserStateClient):
             raise ValueError("Only Scope.user_state is supported")
         raise NotImplementedError()
 
+    @donottrack(StudentModule, StudentModuleHistory)
     def iter_all_for_course(self, course_key, block_type=None, scope=Scope.user_state, batch_size=None):
         """
         You get no ordering guarantees. Fetching will happen in batch_size
