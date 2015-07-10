@@ -117,7 +117,7 @@ class ClassReturingValue(object):
     def donottrack_check_with_return(self, argument=43):
         """ function that returns something i.e. a wrapped function returning some value
         """
-        return 42+argument
+        return 42 + argument
 
 
 @patch('openedx.core.djangoapps.call_stack_manager.core.log.info')
