@@ -80,7 +80,7 @@ class StudentModule(CallStackMixin, models.Model):
     """
     Keeps student state for a particular module in a particular course.
     """
-    objects = ChunkingCallStackManager()
+    objects = ChunkingManager()
     MODEL_TAGS = ['course_id', 'module_type']
 
     # For a homework problem, contains a JSON
@@ -157,7 +157,7 @@ class StudentModuleHistory(CallStackMixin, models.Model):
     """Keeps a complete history of state changes for a given XModule for a given
     Student. Right now, we restrict this to problems so that the table doesn't
     explode in size."""
-    objects = CallStackManager
+    #objects = CallStackManager()
     HISTORY_SAVING_TYPES = {'problem'}
 
     class Meta(object):  # pylint: disable=missing-docstring

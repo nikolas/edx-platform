@@ -5,7 +5,7 @@ from mock import patch
 from django.db import models
 from django.test import TestCase
 
-from openedx.core.djangoapps.call_stack_manager import donottrack, CallStackManager, CallStackMixin
+from openedx.core.djangoapps.call_stack_manager import donottrack, CallStackManager, CallStackMixin, trackit
 
 
 class ModelMixinCallStckMngr(CallStackMixin, models.Model):
@@ -40,12 +40,7 @@ class ModelAnotherCallStckMngr(models.Model):
 
 
 class ModelWithCallStackMngr(models.Model):
-    """
-    Test Model Class with overridden CallStackManager
-    """
-    objects = CallStackManager()
     id_field = models.IntegerField()
-
 
 class ModelWithCallStckMngrChild(ModelWithCallStackMngr):
     """child class of ModelWithCallStackMngr
@@ -108,6 +103,25 @@ def donottrack_func_child():
     # Should not be tracked
     ModelMixin.objects.all()
 
+@trackit
+def trackit_func():
+    """ Test function for track it function
+    """
+    return "hi"
+
+
+class ClassFortrackit(object):
+    """ Test class for track it
+    """
+    @trackit
+    def trackit_method(self):
+        return 42
+
+    @trackit
+    @classmethod
+    def trackit_class_method(self):
+        return 42
+
 
 class ClassReturingValue(object):
     """
@@ -118,6 +132,11 @@ class ClassReturingValue(object):
         """ function that returns something i.e. a wrapped function returning some value
         """
         return 42 + argument
+    """
+    Test Model Class with overridden CallStackManager
+    """
+    objects = CallStackManager()
+
 
 
 @patch('openedx.core.djangoapps.call_stack_manager.core.log.info')
@@ -233,3 +252,27 @@ class TestingCallStackManager(TestCase):
         everything = class_returning_value.donottrack_check_with_return(argument=42)
         self.assertEqual(everything, 84)
         self.assertEqual(len(log_capt.call_args_list), 0)
+
+    def test_trackit_func(self, log_capt):
+        """ Test track it for function
+        """
+        var = trackit_func()
+        self.assertEqual("hi", var)
+        self.assertEqual(len(log_capt.call_args_list), 1)
+
+    def test_trackit_instance_method(self, log_capt):
+        """ Test track it for instance method
+        """
+        cls = ClassFortrackit()
+        var = cls.trackit_method()
+        self.assertEqual(42, var)
+        self.assertEqual('openedx.core.djangoapps.call_stack_manager.tests.trackit_method',
+                         str(log_capt.call_args_list[0][0][1]))
+
+    def test_trackit_class_method(self, log_capt):
+        """ Test for class method
+        """
+        var = ClassFortrackit.trackit_class_method()
+        self.assertEqual(42, var)
+        self.assertEqual('openedx.core.djangoapps.call_stack_manager.tests.trackit_method',
+                         str(log_capt.call_args_list[0][0][1]))

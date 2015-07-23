@@ -35,6 +35,7 @@ import traceback
 import re
 import collections
 import wrapt
+import inspect
 from django.db.models import Manager
 
 log = logging.getLogger(__name__)
@@ -58,11 +59,12 @@ HALT_TRACKING = []
 STACK_BOOK = collections.defaultdict(list)
 
 
-def capture_call_stack(current_model):
+def capture_call_stack(entity_name):
     """ logs customised call stacks in global dictionary `STACK_BOOK`, and logs it.
 
     Args:
         current_model - Name of the model class
+
     """
     # holds temporary callstack
     # frame[0][6:-1] -> File name along with path
@@ -75,10 +77,10 @@ def capture_call_stack(current_model):
                        if not any(reg.match(frame[0]) for reg in REGULAR_EXPS)]
 
     # avoid duplication.
-    if temp_call_stack not in STACK_BOOK[current_model] and TRACK_FLAG \
-            and not issubclass(current_model, tuple(HALT_TRACKING)):
-        STACK_BOOK[current_model].append(temp_call_stack)
-        log.info("logging new call stack for %s:\n %s", current_model, temp_call_stack)
+    if temp_call_stack not in STACK_BOOK[entity_name] and TRACK_FLAG \
+            and not issubclass(entity_name, tuple(HALT_TRACKING)):
+        STACK_BOOK[entity_name].append(temp_call_stack)
+        log.info("logging new call stack for %s:\n %s", entity_name, temp_call_stack)
 
 
 class CallStackMixin(object):
@@ -139,3 +141,28 @@ def donottrack(*classes_not_to_be_tracked):
             HALT_TRACKING = current_halt_track
             return return_value
     return real_donottrack
+
+
+@wrapt.decorator()
+def trackit(wrapped, instance, args, kwargs):
+    if instance is None:
+        if inspect.isclass(wrapped):
+            # Decorator was applied to a class.
+            # <<<LATER LAST ONE>>>
+            return wrapped(*args, **kwargs)
+        else:
+            # Decorator was applied to a function or staticmethod.
+            # [[[Done]]]
+            capture_call_stack(wrapped.__module__ + "." + wrapped.__name__) #cale -?
+            return wrapped(*args, **kwargs)
+    else:
+        if inspect.isclass(instance):
+            # Decorator was applied to a classmethod.
+            # testing done
+            capture_call_stack(wrapped.__module__ + "." + wrapped.__name__) #cale -?
+            return wrapped(*args, **kwargs)
+        else:
+            # Decorator was applied to an instancemethod.
+            # testing done
+            capture_call_stack(wrapped.__module__ + "." + wrapped.__name__) # cale -?
+            return wrapped(*args, **kwargs)
