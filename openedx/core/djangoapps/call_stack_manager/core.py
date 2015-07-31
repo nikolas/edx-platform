@@ -63,24 +63,41 @@ def capture_call_stack(entity_name):
     """ logs customised call stacks in global dictionary `STACK_BOOK`, and logs it.
 
     Args:
-        current_model - Name of the model class
+        entity_name - Name of the model class
 
     """
     # holds temporary callstack
-    # frame[0][6:-1] -> File name along with path
-    # frame[1][6:] -> Line Number
-    # frame[2][3:] -> Context
-    temp_call_stack = [(frame[0][6:-1],
-                        frame[1][6:],
-                        frame[2][3:])
-                       for frame in [stack.replace("\n", "").strip().split(',') for stack in traceback.format_stack()]
+    # List with each element 4-tuple(filename, line number, function name, text)
+    # filtered wrt reg exs
+    temp_call_stack = [(frame[0],
+                        frame[1],
+                        frame[2],
+                        frame[3])
+                       for frame in [frames for frames in traceback.extract_stack()]
                        if not any(reg.match(frame[0]) for reg in REGULAR_EXPS)]
 
+    def _print(frame):
+        # returns in customized output
+        return str('\n File ' + str(frame[0]) + ', line number ' + str(frame[1]) + ', in ' +
+                   str(frame[2]) + '\n\t' + str(frame[3]))
+
+    # get format of the log in desired way
+    # Note - retaining the 4 tuple format for any additional use.
+    final_call_stack = ""
+    for frame in temp_call_stack:
+        final_call_stack += _print(frame)
+
+    log.info("Hobitton")
+    log.info(HALT_TRACKING)
     # avoid duplication.
-    if temp_call_stack not in STACK_BOOK[entity_name] and TRACK_FLAG \
-            and not issubclass(entity_name, tuple(HALT_TRACKING)):
+    if not HALT_TRACKING:
+        log.info("HALT TRACKING IS ZERO")
         STACK_BOOK[entity_name].append(temp_call_stack)
-        log.info("logging new call stack for %s:\n %s", entity_name, temp_call_stack)
+        log.info("logging new call stack for %s:\n %s", entity_name, final_call_stack)
+    elif temp_call_stack not in STACK_BOOK[entity_name] and TRACK_FLAG \
+            and not issubclass(entity_name, tuple(HALT_TRACKING[-1])):
+        STACK_BOOK[entity_name].append(temp_call_stack)
+        log.info("logging new call stack for %s:\n %s", entity_name, final_call_stack)
 
 
 class CallStackMixin(object):
@@ -135,10 +152,10 @@ def donottrack(*classes_not_to_be_tracked):
             return return_value
         else:
             global HALT_TRACKING  # pylint: disable=W0603
-            current_halt_track = HALT_TRACKING
-            HALT_TRACKING = classes_not_to_be_tracked
+            HALT_TRACKING.append(classes_not_to_be_tracked)
+            HALT_TRACKING[-1] = list(set([x for sublist in HALT_TRACKING for x in sublist]))
             return_value = wrapped(*args, **kwargs)
-            HALT_TRACKING = current_halt_track
+            HALT_TRACKING.pop()
             return return_value
     return real_donottrack
 
@@ -148,21 +165,17 @@ def trackit(wrapped, instance, args, kwargs):
     if instance is None:
         if inspect.isclass(wrapped):
             # Decorator was applied to a class.
-            # <<<LATER LAST ONE>>>
             return wrapped(*args, **kwargs)
         else:
             # Decorator was applied to a function or staticmethod.
-            # [[[Done]]]
-            capture_call_stack(wrapped.__module__ + "." + wrapped.__name__) #cale -?
+            capture_call_stack(wrapped.__module__ + "." + wrapped.__name__) 
             return wrapped(*args, **kwargs)
     else:
         if inspect.isclass(instance):
             # Decorator was applied to a classmethod.
-            # testing done
-            capture_call_stack(wrapped.__module__ + "." + wrapped.__name__) #cale -?
+            capture_call_stack(wrapped.__module__ + "." + wrapped.__name__) 
             return wrapped(*args, **kwargs)
         else:
             # Decorator was applied to an instancemethod.
-            # testing done
-            capture_call_stack(wrapped.__module__ + "." + wrapped.__name__) # cale -?
+            capture_call_stack(wrapped.__module__ + "." + wrapped.__name__)
             return wrapped(*args, **kwargs)
