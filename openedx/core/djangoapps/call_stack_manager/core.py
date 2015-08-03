@@ -49,7 +49,8 @@ TRACK_FLAG = True
 # List keeping track of Model classes not be tracked for special cases
 # usually cases where we know that the function is calling Model classes.
 HALT_TRACKING = []
-
+log.info("HALT TRACKING initialized")
+log.info(id(HALT_TRACKING))
 # Module Level variables
 # dictionary which stores call stacks.
 # { "ModelClasses" : [ListOfFrames]}
@@ -87,14 +88,7 @@ def capture_call_stack(entity_name):
     for frame in temp_call_stack:
         final_call_stack += _print(frame)
 
-    log.info("Hobitton")
-    log.info(HALT_TRACKING)
-    # avoid duplication.
-    if not HALT_TRACKING:
-        log.info("HALT TRACKING IS ZERO")
-        STACK_BOOK[entity_name].append(temp_call_stack)
-        log.info("logging new call stack for %s:\n %s", entity_name, final_call_stack)
-    elif temp_call_stack not in STACK_BOOK[entity_name] and TRACK_FLAG \
+    if temp_call_stack not in STACK_BOOK[entity_name] and TRACK_FLAG \
             and not issubclass(entity_name, tuple(HALT_TRACKING[-1])):
         STACK_BOOK[entity_name].append(temp_call_stack)
         log.info("logging new call stack for %s:\n %s", entity_name, final_call_stack)
@@ -143,20 +137,12 @@ def donottrack(*classes_not_to_be_tracked):
         Args:
             function - wrapped function i.e. real_donottrack
         """
-        if len(classes_not_to_be_tracked) == 0:
-            global TRACK_FLAG  # pylint: disable=W0603
-            current_flag = TRACK_FLAG
-            TRACK_FLAG = False
-            return_value = wrapped(*args, **kwargs)
-            TRACK_FLAG = current_flag
-            return return_value
-        else:
-            global HALT_TRACKING  # pylint: disable=W0603
-            HALT_TRACKING.append(classes_not_to_be_tracked)
-            HALT_TRACKING[-1] = list(set([x for sublist in HALT_TRACKING for x in sublist]))
-            return_value = wrapped(*args, **kwargs)
-            HALT_TRACKING.pop()
-            return return_value
+        global HALT_TRACKING  # pylint: disable=W0603
+        HALT_TRACKING.append(classes_not_to_be_tracked)
+        HALT_TRACKING[-1] = list(set([x for sublist in HALT_TRACKING for x in sublist]))
+        return_value = wrapped(*args, **kwargs)
+        HALT_TRACKING.pop()
+        return return_value
     return real_donottrack
 
 
