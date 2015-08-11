@@ -1,16 +1,15 @@
 /**
  * Provides helper methods for invoking Studio modal windows in Jasmine tests.
  */
-define(["jquery", "js/views/feedback_notification", "js/views/feedback_prompt", 'common/js/spec_helpers/ajax_helpers',
-    "common/js/spec_helpers/template_helpers"],
-    function($, NotificationView, Prompt, AjaxHelpers, TemplateHelpers) {
+define(["jquery", "js/views/feedback_notification", "common/js/components/views/feedback_prompt",
+        'common/js/spec_helpers/ajax_helpers'],
+    function($, NotificationView, Prompt, AjaxHelpers) {
         var installViewTemplates, createFeedbackSpy, verifyFeedbackShowing,
             verifyFeedbackHidden, createNotificationSpy, verifyNotificationShowing,
             verifyNotificationHidden, createPromptSpy, confirmPrompt, inlineEdit, verifyInlineEditChange,
             installMockAnalytics, removeMockAnalytics, verifyPromptShowing, verifyPromptHidden;
 
-        installViewTemplates = function(append) {
-            TemplateHelpers.installTemplate('system-feedback', !append);
+        installViewTemplates = function() {
             appendSetFixtures('<div id="page-notification"></div>');
         };
 

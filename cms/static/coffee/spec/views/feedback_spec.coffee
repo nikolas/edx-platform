@@ -1,14 +1,11 @@
-define ["jquery", "js/views/feedback", "js/views/feedback_notification", "js/views/feedback_alert",
-    "js/views/feedback_prompt", "sinon"],
+define ["jquery", "common/js/components/views/feedback", "js/views/feedback_notification",
+        "js/views/feedback_alert", "common/js/components/views/feedback_prompt", "sinon"],
 ($, SystemFeedback, NotificationView, AlertView, PromptView, sinon) ->
-
-    tpl = readFixtures('system-feedback.underscore')
 
     beforeEach ->
         setFixtures(sandbox({id: "page-alert"}))
         appendSetFixtures(sandbox({id: "page-notification"}))
         appendSetFixtures(sandbox({id: "page-prompt"}))
-        appendSetFixtures($("<script>", {id: "system-feedback-tpl", type: "text/template"}).text(tpl))
         @addMatchers
             toBeShown: ->
                 @actual.hasClass("is-shown") and not @actual.hasClass("is-hiding")

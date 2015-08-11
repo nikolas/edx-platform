@@ -284,7 +284,7 @@ def button_disabled(step, value):
 def _do_studio_prompt_action(intent, action):
     """
     Wait for a studio prompt to appear and press the specified action button
-    See cms/static/js/views/feedback_prompt.js for implementation
+    See common/js/components/views/feedback_prompt.js for implementation
     """
     assert intent in [
         'warning',
