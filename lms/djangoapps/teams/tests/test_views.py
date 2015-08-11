@@ -363,7 +363,7 @@ class TestListTeamsAPI(TeamAPITestCase):
     @ddt.data(
         (None, 200, ['Nuclear Team', u'sólar team', 'Wind Team']),
         ('name', 200, ['Nuclear Team', u'sólar team', 'Wind Team']),
-        ('open_slots', 200, ['Wind Team', u'sólar team', 'Nuclear Team']),
+        ('open_slots', 200, ['Wind Team', 'Nuclear Team', u'sólar team']),
         ('last_activity', 400, []),
     )
     @ddt.unpack
@@ -597,10 +597,18 @@ class TestListTopicsAPI(TeamAPITestCase):
     @ddt.data(
         (None, 200, ['Coal Power', 'Nuclear Power', u'sólar power', 'Wind Power'], 'name'),
         ('name', 200, ['Coal Power', 'Nuclear Power', u'sólar power', 'Wind Power'], 'name'),
+        ('team_count', 200, ['Nuclear Power', u'sólar power', 'Coal Power', 'Wind Power'], 'team_count'),
         ('no_such_field', 400, [], None),
     )
     @ddt.unpack
     def test_order_by(self, field, status, names, expected_ordering):
+        # Add 2 teams to "Nuclear Power", which previously had no teams.
+        CourseTeamFactory.create(
+            name=u'Nuclear Team 1', course_id=self.test_course_1.id, topic_id='topic_2'
+        )
+        CourseTeamFactory.create(
+            name=u'Nuclear Team 2', course_id=self.test_course_1.id, topic_id='topic_2'
+        )
         data = {'course_id': self.test_course_1.id}
         if field:
             data['order_by'] = field

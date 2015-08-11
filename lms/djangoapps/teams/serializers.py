@@ -140,6 +140,8 @@ class PaginatedTopicSerializer(PaginationSerializer):
     Serializes a set of topics, adding team_count field to each topic.
     Requires that `context` is provided with a valid course_id in
     order to filter teams within the course.
+    `context` may also specify a sort_order, though currently the only supported sort_order
+    is `team_count`; any other requested sort_order will be ignored.
     """
     class Meta(object):
         """Defines meta information for the PaginatedTopicSerializer."""
@@ -160,3 +162,6 @@ class PaginatedTopicSerializer(PaginationSerializer):
         topics_to_team_count = {d['topic_id']: d['team_count'] for d in teams_per_topic}
         for topic in self.data['results']:
             topic['team_count'] = topics_to_team_count.get(topic['id'], 0)
+
+        if 'sort_order' in self.context and self.context['sort_order'] == 'team_count':
+            list.sort(self.data['results'], key=lambda t: t['team_count'], reverse=True)

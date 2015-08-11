@@ -83,12 +83,11 @@ class TeamsDashboardView(View):
                 not has_access(request.user, 'staff', course, course.id):
             raise Http404
 
-        sort_order = 'name'
-        topics = get_ordered_topics(course, sort_order)
+        topics = get_alphabetical_topics(course)
         topics_page = Paginator(topics, TOPICS_PER_PAGE).page(1)
         topics_serializer = PaginatedTopicSerializer(
             instance=topics_page,
-            context={'course_id': course.id, 'sort_order': sort_order}
+            context={'course_id': course.id}
         )
         user = request.user
         context = {
@@ -163,7 +162,7 @@ class TeamsListView(ExpandableFieldViewMixin, GenericAPIView):
 
                 * name: Orders results by case insensitive team name (default).
 
-                * open_slots: Orders results by most open slots.
+                * open_slots: Orders results by most open slots (with name as a secondary sort).
 
                 * last_activity: Currently not supported.
 
@@ -315,14 +314,15 @@ class TeamsListView(ExpandableFieldViewMixin, GenericAPIView):
             )
 
         queryset = CourseTeam.objects.filter(**result_filter)
+        # We will always use name as either a primary or secondary sort.
+        queryset = queryset.extra(select={'lower_name': "lower(name)"})
 
         order_by_input = request.QUERY_PARAMS.get('order_by', 'name')
         if order_by_input == 'name':
-            queryset = queryset.extra(select={'lower_name': "lower(name)"})
-            order_by_field = 'lower_name'
+            queryset = queryset.order_by('lower_name')
         elif order_by_input == 'open_slots':
             queryset = queryset.annotate(team_size=Count('users'))
-            order_by_field = 'team_size'
+            queryset = queryset.order_by('team_size', 'lower_name')
         elif order_by_input == 'last_activity':
             return Response(
                 build_api_error(ugettext_noop("last_activity is not yet supported")),
@@ -337,8 +337,6 @@ class TeamsListView(ExpandableFieldViewMixin, GenericAPIView):
                 # list by lower case name.
                 'user_message': _(u"The ordering {ordering} is not supported").format(ordering=order_by_input),
             }, status=status.HTTP_400_BAD_REQUEST)
-
-        queryset = queryset.order_by(order_by_field)
 
         page = self.paginate_queryset(queryset)
         serializer = self.get_pagination_serializer(page)
@@ -497,8 +495,9 @@ class TopicListView(GenericAPIView):
             * course_id: Filters the result to topics belonging to the given
               course (required).
 
-            * order_by: Orders the results. Currently only 'name' is supported,
-              and is also the default value.
+            * order_by: Orders the results. Currently only 'name' and 'team_count' are supported;
+              the default value is 'name'. If 'team_count' is specified, topics are returned first sorted
+              by number of teams per topic (descending), with a secondary sort of 'name'.
 
             * page_size: Number of results to return per page.
 
@@ -574,9 +573,7 @@ class TopicListView(GenericAPIView):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         ordering = request.QUERY_PARAMS.get('order_by', 'name')
-        if ordering == 'name':
-            topics = get_ordered_topics(course_module, ordering)
-        else:
+        if ordering not in ['name', 'team_count']:
             return Response({
                 'developer_message': "unsupported order_by value {ordering}".format(ordering=ordering),
                 # Translators: 'ordering' is a string describing a way
@@ -586,22 +583,25 @@ class TopicListView(GenericAPIView):
                 'user_message': _(u"The ordering {ordering} is not supported").format(ordering=ordering),
             }, status=status.HTTP_400_BAD_REQUEST)
 
+        # Always sort alphabetically, as it will be used as secondary sort
+        # in the case of "team_count".
+        topics = get_alphabetical_topics(course_module)
+
         page = self.paginate_queryset(topics)
         serializer = self.pagination_serializer_class(page, context={'course_id': course_id, 'sort_order': ordering})
         return Response(serializer.data)
 
 
-def get_ordered_topics(course_module, ordering):
-    """Return a sorted list of team topics.
+def get_alphabetical_topics(course_module):
+    """Return a list of team topics sorted alphabetically.
 
     Arguments:
         course_module (xmodule): the course which owns the team topics
-        ordering (str): the key belonging to topic dicts by which we sort
 
     Returns:
         list: a list of sorted team topics
     """
-    return sorted(course_module.teams_topics, key=lambda t: t[ordering].lower())
+    return sorted(course_module.teams_topics, key=lambda t: t['name'].lower())
 
 
 class TopicDetailView(APIView):
