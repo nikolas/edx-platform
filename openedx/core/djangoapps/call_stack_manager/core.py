@@ -101,10 +101,6 @@ def donottrack(*classes_not_to_be_tracked):
     Returns:
         wrapped function
     """
-    global HALT_TRACKING  # pylint: disable=W0603
-    HALT_TRACKING.append(classes_not_to_be_tracked)
-    HALT_TRACKING[-1] = list(set([x for sublist in HALT_TRACKING for x in sublist]))
-
     @wrapt.decorator
     def real_donottrack(wrapped, instance, args, kwargs):  # pylint: disable=W0613
         """takes function to be decorated and returns wrapped function
@@ -112,10 +108,12 @@ def donottrack(*classes_not_to_be_tracked):
         Args:
             function - wrapped function i.e. real_donottrack
         """
+        global HALT_TRACKING  # pylint: disable=W0603
+        HALT_TRACKING.append(classes_not_to_be_tracked)
+        HALT_TRACKING[-1] = list(set([x for sublist in HALT_TRACKING for x in sublist]))
         return_value = wrapped(*args, **kwargs)
+        HALT_TRACKING.pop()
         return return_value
-
-    HALT_TRACKING.pop()
     return real_donottrack
 
 
