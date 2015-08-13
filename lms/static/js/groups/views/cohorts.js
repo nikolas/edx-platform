@@ -1,11 +1,11 @@
 ;(function (define) {
     'use strict';
-    define(['jquery', 'underscore', 'backbone', 'gettext', 'js/groups/models/cohort', 
+    define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/view_utils','js/groups/models/cohort',
             'js/groups/views/cohort_editor', 'js/groups/views/cohort_form', 
             'js/groups/views/course_cohort_settings_notification',
             'js/groups/views/cohort_discussions_inline', 'js/groups/views/cohort_discussions_course_wide',
             'js/views/file_uploader', 'js/models/notification', 'js/views/notification', 'string_utils'],
-        function($, _, Backbone, gettext, CohortModel, CohortEditorView, CohortFormView,
+        function($, _, Backbone, gettext, ViewUtils, CohortModel, CohortEditorView, CohortFormView,
                 CourseCohortSettingsNotificationView, InlineDiscussionsView, CourseWideDiscussionsView) {
 
             var hiddenClass = 'is-hidden',
@@ -115,7 +115,14 @@
 
                 onCohortsEnabledChanged: function(event) {
                     event.preventDefault();
-                    this.saveCohortSettings();
+                    ViewUtils.confirmThenRunOperation(
+                        gettext('Leave this team?'),
+                        gettext('Leaving a team means you can no longer post on this team, and your spot is opened for another learner.'),
+                        gettext('Leave'),
+                        function() {
+                            this.saveCohortSettings();
+                        }
+                    );
                 },
 
                 saveCohortSettings: function() {
