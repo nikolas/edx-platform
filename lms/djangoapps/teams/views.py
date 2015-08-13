@@ -479,6 +479,39 @@ class TeamsDetailView(ExpandableFieldViewMixin, RetrievePatchAPIView):
     serializer_class = CourseTeamSerializer
     parser_classes = (MergePatchParser,)
 
+    def get(self, request, *args, **kwargs):
+        if 'yolo' in request.QUERY_PARAMS:
+            return Response({
+                "id": "space-team",
+                "discussion_topic_id": "85c7b9149bcb40618eb3f22e68839429",
+                "name": "Space Team",
+                "is_active": "true",
+                "course_id": "course-v1:edX+DemoX+Demo_Course",
+                "topic_id": "waterbears",
+                "date_created": "2015-08-13T16:59:33Z",
+                "description": "Spaaaaace.",
+                "country": "",
+                "language": "",
+                "membership": [
+                    {
+                        "user": {
+                            "username": "verified",
+                            "url": "http://nr-tnl-3038.sandbox.edx.org/api/user/v1/accounts/verified",
+                            "profile_image": {
+                                "image_url_full": "http://nr-tnl-3038.sandbox.edx.org/static/images/default-theme/default-profile_500.de2c6854f1eb.png",
+                                "image_url_large": "http://nr-tnl-3038.sandbox.edx.org/static/images/default-theme/default-profile_120.33ad4f755071.png",
+                                "image_url_medium": "http://nr-tnl-3038.sandbox.edx.org/static/images/default-theme/default-profile_50.5fb006f96a15.png",
+                                "image_url_small": "http://nr-tnl-3038.sandbox.edx.org/static/images/default-theme/default-profile_30.ae6a9ca9b390.png",
+                                "has_image": "false"
+                            }
+                        },
+                        "date_joined": "2015-08-13T17:15:43Z"
+                    }
+                ]
+            })
+        else:
+            return super(TeamsDetailView, self).get(request, *args, **kwargs)
+
     def get_queryset(self):
         """Returns the queryset used to access the given team."""
         return CourseTeam.objects.all()

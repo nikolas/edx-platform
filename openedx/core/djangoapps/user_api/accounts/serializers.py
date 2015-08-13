@@ -59,6 +59,7 @@ class UserReadOnlySerializer(serializers.Serializer):
         :param user: User object
         :return: Dict serialized account
         """
+        print '\n\n\nyolo\n\n\n'
         profile = user.profile
 
         data = {
