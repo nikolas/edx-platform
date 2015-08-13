@@ -48,7 +48,7 @@ def capture_call_stack(entity_name):
                        if not any(reg.match(frame[0]) for reg in REGULAR_EXPS)]
 
     def _print(frame):
-        # returns customized output
+        # Returns customized output
         return str('\n File ' + str(frame[0]) + ', line number ' + str(frame[1]) + ', in ' +
                    str(frame[2]) + '\n\t' + str(frame[3]))
 
@@ -57,14 +57,15 @@ def capture_call_stack(entity_name):
     final_call_stack = ""
     for frame in temp_call_stack:
         final_call_stack += _print(frame)
-
-    if not HALT_TRACKING and TRACK_FLAG and temp_call_stack not in STACK_BOOK[entity_name]:
+    # temporary workaround
+    # Classes_not_to_be_trakced =
+    if not HALT_TRACKING and TRACK_FLAG and temp_call_stack not in STACK_BOOK[entity_name]: # TODO: check if call_stack is empty _ dont log if it is empty
         STACK_BOOK[entity_name].append(temp_call_stack)
-        log.info("Logging new call stack for %s:\n %s", entity_name, temp_call_stack)
+        log.info("Logging new call stack for %s:\n %s", entity_name, final_call_stack)
     elif temp_call_stack not in STACK_BOOK[entity_name] and TRACK_FLAG \
             and not issubclass(entity_name, tuple(HALT_TRACKING[-1])):
         STACK_BOOK[entity_name].append(temp_call_stack)
-        log.info("Logging new call stack for %s:\n %s", entity_name, temp_call_stack)
+        log.info("Logging new call stack for %s:\n %s", entity_name, final_call_stack)
 
 
 class CallStackMixin(object):
@@ -75,14 +76,20 @@ class CallStackMixin(object):
         """
         Logs before save and overrides respective model API save()
         """
-        capture_call_stack(type(self))
+        if hasattr(self, 'model'):
+            capture_call_stack(self.model)
+        else:
+            capture_call_stack(type(self))
         return super(CallStackMixin, self).save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         """
         Logs before delete and overrides respective model API delete()
         """
-        capture_call_stack(type(self))
+        if hasattr(self, 'model'):
+            capture_call_stack(self.model)
+        else:
+            capture_call_stack(type(self))
         return super(CallStackMixin, self).delete(*args, **kwargs)
 
 
@@ -92,7 +99,10 @@ class CallStackManager(Manager):
     def get_query_set(self):
         """overriding the default queryset API method
         """
-        capture_call_stack(type(self))
+        if hasattr(self, 'model'):
+            capture_call_stack(self.model)
+        else:
+            capture_call_stack(type(self))
         return super(CallStackManager, self).get_query_set()
 
 
@@ -114,6 +124,7 @@ def donottrack(*classes_not_to_be_tracked):
         HALT_TRACKING.append(classes_not_to_be_tracked)
         HALT_TRACKING[-1] = list(set([x for sublist in HALT_TRACKING for x in sublist]))
         return_value = wrapped(*args, **kwargs)
+        # check if the returning class is generator, if it is, do something else.
         if isinstance(return_value, types.GeneratorType):
             def generator_wrapper(wrapped_generator):
                 try:
