@@ -6,12 +6,14 @@ import traceback
 import re
 import collections
 import wrapt
+import types
 from django.db.models import Manager
 
 log = logging.getLogger(__name__)
 
 # list of regular expressions acting as filters
-REGULAR_EXPS = [re.compile(x) for x in []]#'^.*python2.7.*$', '^.*<exec_function>.*$', '^.*exec_code_object.*$',  '^.*edxapp/src.*$', '^.*call_stack_manager.*$', '^.*ChunkingCallStackManager.*$']]
+REGULAR_EXPS = [re.compile(x) for x in ['^.*python2.7.*$', '^.*<exec_function>.*$', '^.*exec_code_object.*$',
+                                        '^.*edxapp/src.*$', '^.*call_stack_manager.*$', '^.*ChunkingCallStackManager.*$']]
 # Variable which decides whether to track calls in the function or not. Do it by default.
 TRACK_FLAG = True
 
@@ -112,8 +114,18 @@ def donottrack(*classes_not_to_be_tracked):
         HALT_TRACKING.append(classes_not_to_be_tracked)
         HALT_TRACKING[-1] = list(set([x for sublist in HALT_TRACKING for x in sublist]))
         return_value = wrapped(*args, **kwargs)
-        HALT_TRACKING.pop()
-        return return_value
+        if isinstance(return_value, types.GeneratorType):
+            def generator_wrapper(wrapped_generator):
+                try:
+                    while True:
+                        return_value = next(wrapped_generator)
+                        yield return_value
+                finally:
+                    HALT_TRACKING.pop()
+            return generator_wrapper(return_value)
+        else:
+            HALT_TRACKING.pop()
+            return return_value
     return real_donottrack
 
 
