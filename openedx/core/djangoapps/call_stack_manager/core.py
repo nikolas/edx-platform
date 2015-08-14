@@ -11,35 +11,34 @@ from django.db.models import Manager
 
 log = logging.getLogger(__name__)
 
-# list of regular expressions acting as filters
+# List of regular expressions acting as filters
 REGULAR_EXPS = [re.compile(x) for x in ['^.*python2.7.*$', '^.*<exec_function>.*$', '^.*exec_code_object.*$',
-                                        '^.*edxapp/src.*$', '^.*call_stack_manager.*$', '^.*ChunkingCallStackManager.*$']]
-# Variable which decides whether to track calls in the function or not. Do it by default.
+                                        '^.*edxapp/src.*$', '^.*call_stack_manager.*$']]
+
+# Flag which decides whether to track calls in the function or not. Default True.
 TRACK_FLAG = True
 
-# List keeping track of Model classes not be tracked for special cases
-# usually cases where we know that the function is calling Model classes.
+# List keeping track of entities not to be tracked
 HALT_TRACKING = []
 
-# Module Level variables
-# dictionary which stores call stacks.
-# { "ModelClasses" : [ListOfFrames]}
+#  Dictionary which stores call logs
+# {'EntityName' : [ListOfFrames]}
 # Frames - ('FilePath','LineNumber','Context')
-# ex. {"<class 'courseware.models.StudentModule'>" : [[(file,line number,context),(---,---,---)],
-#                                                    [(file,line number,context),(---,---,---)]]}
+# ex. {"<class 'courseware.models.StudentModule'>" : [[(file, line number, function name, context),(---,---,---)],
+#                                                    [(file, line number, function name, context),(---,---,---)]]}
 STACK_BOOK = collections.defaultdict(list)
 
 
 def capture_call_stack(entity_name):
-    """ logs customised call stacks in global dictionary `STACK_BOOK`, and logs it.
+    """ Logs customised call stacks in global dictionary STACK_BOOK and logs it.
 
-    Args:
-        entity_name - Name of the model class
+    Arguments:
+        entity_name - entity
 
     """
-    # holds temporary callstack
+    # Holds temporary callstack
     # List with each element 4-tuple(filename, line number, function name, text)
-    # filtered wrt reg exs
+    # and filtered with respect to regular expressions
     temp_call_stack = [(frame[0],
                         frame[1],
                         frame[2],
@@ -48,113 +47,132 @@ def capture_call_stack(entity_name):
                        if not any(reg.match(frame[0]) for reg in REGULAR_EXPS)]
 
     def _print(frame):
-        # Returns customized output
         return str('\n File ' + str(frame[0]) + ', line number ' + str(frame[1]) + ', in ' +
                    str(frame[2]) + '\n\t' + str(frame[3]))
 
-    # get format of the log in desired way
-    # Note - retaining the 4 tuple format for any additional use.
+    # Customize output of call stack
     final_call_stack = ""
     for frame in temp_call_stack:
         final_call_stack += _print(frame)
-    # temporary workaround
-    # Classes_not_to_be_trakced =
-    if not HALT_TRACKING and TRACK_FLAG and temp_call_stack not in STACK_BOOK[entity_name]: # TODO: check if call_stack is empty _ dont log if it is empty
-        STACK_BOOK[entity_name].append(temp_call_stack)
-        log.info("Logging new call stack for %s:\n %s", entity_name, final_call_stack)
-    elif temp_call_stack not in STACK_BOOK[entity_name] and TRACK_FLAG \
-            and not issubclass(entity_name, tuple(HALT_TRACKING[-1])):
-        STACK_BOOK[entity_name].append(temp_call_stack)
-        log.info("Logging new call stack for %s:\n %s", entity_name, final_call_stack)
+
+    if not HALT_TRACKING:
+        if TRACK_FLAG and temp_call_stack not in STACK_BOOK[entity_name]:
+            STACK_BOOK[entity_name].append(temp_call_stack)
+            log.info("Logging new call stack number %s for %s:\n %s", len(STACK_BOOK[entity_name]),
+                     entity_name, final_call_stack)
+    else:
+        if temp_call_stack not in STACK_BOOK[entity_name] and not issubclass(entity_name, tuple(HALT_TRACKING[-1])):
+            STACK_BOOK[entity_name].append(temp_call_stack)
+            log.info("Logging new call stack number %s for %s:\n %s", len(STACK_BOOK[entity_name]),
+                     entity_name, final_call_stack)
 
 
 class CallStackMixin(object):
-    """ A mixin class for getting call stacks when Save() and Delete() methods are called
+    """ Mixin class for getting call stacks when save() and delete() methods are called
     """
 
     def save(self, *args, **kwargs):
         """
-        Logs before save and overrides respective model API save()
+        Logs before save() and overrides respective model API save()
         """
-        if hasattr(self, 'model'):
-            capture_call_stack(self.model)
-        else:
-            capture_call_stack(type(self))
+        capture_call_stack(lambda entity: self.model if hasattr(self, 'model') else type(self))
         return super(CallStackMixin, self).save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         """
-        Logs before delete and overrides respective model API delete()
+        Logs before delete() and overrides respective model API delete()
         """
-        if hasattr(self, 'model'):
-            capture_call_stack(self.model)
-        else:
-            capture_call_stack(type(self))
+        capture_call_stack(lambda entity: self.model if hasattr(self, 'model') else type(self))
         return super(CallStackMixin, self).delete(*args, **kwargs)
 
 
 class CallStackManager(Manager):
-    """ A Manager class which overrides the default Manager class for getting call stacks
+    """ Manager class which overrides the default Manager class for getting call stacks
     """
     def get_query_set(self):
-        """overriding the default queryset API method
+        """ Override the default queryset API method
         """
-        if hasattr(self, 'model'):
-            capture_call_stack(self.model)
-        else:
-            capture_call_stack(type(self))
+        capture_call_stack(lambda entity: self.model if hasattr(self, 'model') else type(self))
         return super(CallStackManager, self).get_query_set()
 
 
-def donottrack(*classes_not_to_be_tracked):
-    """function decorator which deals with toggling call stack
-    Args:
-        classes_not_to_be_tracked: model classes where tracking is undesirable
+def donottrack(*entities_not_to_be_tracked):
+    """ Decorator which halts tracking for some entities for specific functions
+
+    Arguments:
+        entities_not_to_be_tracked: entities which are not to be tracked
+
     Returns:
         wrapped function
     """
     @wrapt.decorator
     def real_donottrack(wrapped, instance, args, kwargs):  # pylint: disable=W0613
-        """takes function to be decorated and returns wrapped function
+        """ Takes function to be decorated and returns wrapped function
 
-        Args:
-            function - wrapped function i.e. real_donottrack
+        Arguments:
+            wrapped - The wrapped function which in turns needs to be called by wrapper function.
+            instance - The object to which the wrapped function was bound when it was called.
+            args - The list of positional arguments supplied when the decorated function was called.
+            kwargs - The dictionary of keyword arguments supplied when the decorated function was called.
+
         """
-        global HALT_TRACKING  # pylint: disable=W0603
-        HALT_TRACKING.append(classes_not_to_be_tracked)
-        HALT_TRACKING[-1] = list(set([x for sublist in HALT_TRACKING for x in sublist]))
-        return_value = wrapped(*args, **kwargs)
-        # check if the returning class is generator, if it is, do something else.
-        if isinstance(return_value, types.GeneratorType):
-            def generator_wrapper(wrapped_generator):
-                try:
-                    while True:
-                        return_value = next(wrapped_generator)
-                        yield return_value
-                finally:
-                    HALT_TRACKING.pop()
-            return generator_wrapper(return_value)
-        else:
-            HALT_TRACKING.pop()
-            return return_value
+        if entities_not_to_be_tracked :
+            global HALT_TRACKING  # pylint: disable=W0603
+            HALT_TRACKING.append(entities_not_to_be_tracked)
+            HALT_TRACKING[-1] = list(set([x for sublist in HALT_TRACKING for x in sublist]))
+            return_value = wrapped(*args, **kwargs)
+
+            # check if the returning class is a generator
+            if isinstance(return_value, types.GeneratorType):
+                def generator_wrapper(wrapped_generator):
+                    try:
+                        while True:
+                            return_value = next(wrapped_generator)
+                            yield return_value
+                    finally:
+                        HALT_TRACKING.pop()
+                return generator_wrapper(return_value)
+            else:
+                HALT_TRACKING.pop()
+                return return_value
+        else: # if donottrack is parameterized
+            global TRACK_FLAG  # pylint: disable=W0603
+            TRACK_FLAG = False
+            return_value = wrapped(*args, **kwargs)
+
+            # check if the returning class is a generator
+            if isinstance(return_value, types.GeneratorType):
+                def generator_wrapper(wrapped_generator):
+                    try:
+                        while True:
+                            return_value = next(wrapped_generator)
+                            yield return_value
+                    finally:
+                        global TRACK_FLAG
+                        TRACK_FLAG = True
+                return generator_wrapper(return_value)
+            else:
+                TRACK_FLAG = False
+                return return_value
     return real_donottrack
 
 
 @wrapt.decorator()
 def trackit(wrapped, instance, args, kwargs):
-    # TODO: extend this to classes/methods/functions/etc
+    """ Decorator initiating tracking of function
+    """
     capture_call_stack(wrapped.__module__ + "." + wrapped.__name__)
     return wrapped(*args, **kwargs)
 
 
-def track_till_now(*classes_not_to_be_tracked): # TODO: change format, testing
+def track_till_now(*entities_not_to_be_tracked): # TODO: formatting
     """ Gets unique calls tacks till now
     """
     @wrapt.decorator
     def real_track_till_now(wrapped, instance, args, kwargs):  # pylint: disable=W0613
         """
         """
-        entities = classes_not_to_be_tracked
+        entities = entities_not_to_be_tracked
         for entity in entities:
             if entity in STACK_BOOK:
                 log.info("Logging unique call stacks of %s \n %s", entity, STACK_BOOK[entity])
