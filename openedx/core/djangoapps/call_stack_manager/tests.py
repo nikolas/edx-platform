@@ -144,7 +144,6 @@ class ClassReturingValue(object):
     """
     objects = CallStackManager()
 
-
 @patch('openedx.core.djangoapps.call_stack_manager.core.log.info')
 @patch('openedx.core.djangoapps.call_stack_manager.core.REGULAR_EXPS', [])
 class TestingCallStackManager(TestCase):
@@ -152,6 +151,8 @@ class TestingCallStackManager(TestCase):
     1. Tests CallStackManager QuerySetAPI functionality
     2. Tests @donottrack decorator
     """
+    @patch('openedx.core.djangoapps.call_stack_manager.core.log.info')
+    @patch('openedx.core.djangoapps.call_stack_manager.core.REGULAR_EXPS', [])
     def test_save(self, log_capt):
         """ tests save() of CallStackMixin/ applies same for delete()
         classes with CallStackMixin should participate in logging.
@@ -159,6 +160,8 @@ class TestingCallStackManager(TestCase):
         ModelMixin(id_field=1).save()
         self.assertEqual(ModelMixin, log_capt.call_args[0][1])
 
+    @patch('openedx.core.djangoapps.call_stack_manager.core.log.info')
+    @patch('openedx.core.djangoapps.call_stack_manager.core.REGULAR_EXPS', [])
     def test_withoutmixin_save(self, log_capt):
         """tests save() of CallStackMixin/ applies same for delete()
         classes without CallStackMixin should not participate in logging
