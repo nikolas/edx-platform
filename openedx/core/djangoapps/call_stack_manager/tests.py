@@ -1,6 +1,7 @@
 """
 Test cases for Call Stack Manager
 """
+import collections
 from mock import patch
 from django.db import models
 from django.test import TestCase
@@ -123,6 +124,12 @@ class ClassFortrackit(object):
         return 42
 
 
+@donottrack()
+def donottrack_yield_func():
+    ModelMixinCallStckMngr(id_field=1).save()
+    yield 48
+
+
 class ClassReturingValue(object):
     """
     Test class with a decorated method
@@ -136,7 +143,6 @@ class ClassReturingValue(object):
     Test Model Class with overridden CallStackManager
     """
     objects = CallStackManager()
-
 
 
 @patch('openedx.core.djangoapps.call_stack_manager.core.log.info')
@@ -223,7 +229,6 @@ class TestingCallStackManager(TestCase):
         ModelMixinCallStckMngr(id_field=1).save()
         track_without_donottrack()
         self.assertEqual(ModelMixinCallStckMngr, log_capt.call_args_list[0][0][2])
-        # from nose.tools import set_trace; set_trace()
         self.assertEqual(ModelAnotherCallStckMngr, log_capt.call_args_list[1][0][2])
         self.assertEqual(ModelMixinCallStckMngr, log_capt.call_args_list[2][0][2])
         self.assertEqual(ModelAnotherCallStckMngr, log_capt.call_args_list[3][0][2])
@@ -243,7 +248,7 @@ class TestingCallStackManager(TestCase):
         """
         for __ in range(1, 5):
             ModelMixinCallStckMngr(id_field=1).save()
-        self.assertEqual(len(log_capt.call_args_list), 1)
+        self.assertEqual(log_capt.call_args_list, 1)
 
     def test_donottrack_with_return(self, log_capt):
         """ Test for @donottrack
@@ -259,7 +264,7 @@ class TestingCallStackManager(TestCase):
         """
         var = trackit_func()
         self.assertEqual("hi", var)
-        self.assertEqual(len(log_capt.call_args_list), 1)
+        self.assertEqual(len(log_capt.call_args_list), 1, msg = log_capt.call_args_list)
 
     def test_trackit_instance_method(self, log_capt):
         """ Test track it for instance method
@@ -277,3 +282,9 @@ class TestingCallStackManager(TestCase):
         self.assertEqual(42, var)
         self.assertEqual('openedx.core.djangoapps.call_stack_manager.tests.trackit_method',
                          str(log_capt.call_args_list[0][0][1]))
+
+    def test_yield(self, log_capt):
+        """ Test for yeild generator
+        """
+        donottrack_yield_func()
+        self.assertEqual(len(log_capt.call_args_list), 0)

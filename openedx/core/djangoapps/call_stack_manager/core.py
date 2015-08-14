@@ -67,12 +67,12 @@ def capture_call_stack(entity_name):
                 if temp_call_stack not in STACK_BOOK[entity_name] and not issubclass(entity_name, tuple(HALT_TRACKING[-1])):
                     return True
                 else:
-                    False
-            else:
+                    return False
+            else: # Assumption : Everything other than "class" will be passed as string
                 if temp_call_stack not in STACK_BOOK[entity_name] and not entity_name in tuple(HALT_TRACKING[-1]):
                     return True
                 else:
-                    False
+                    return False
 
     if _should_get_logged(entity_name):
         STACK_BOOK[entity_name].append(temp_call_stack)
@@ -152,12 +152,14 @@ def donottrack(*entities_not_to_be_tracked):
                             return_value = next(wrapped_generator)
                             yield return_value
                     finally:
+                        global HALT_TRACKING
                         HALT_TRACKING.pop()
                 return generator_wrapper(return_value)
             else:
                 HALT_TRACKING.pop()
                 return return_value
-        else: # if donottrack is parameterized
+
+        else: # if donottrack is not parameterized
             global TRACK_FLAG  # pylint: disable=W0603
             TRACK_FLAG = False
             return_value = wrapped(*args, **kwargs)
