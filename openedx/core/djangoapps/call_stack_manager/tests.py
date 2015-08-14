@@ -192,7 +192,7 @@ class TestingCallStackManager(TestCase):
         ModelAnotherCallStckMngr(id_field=1).save()
         ModelMixinCallStckMngr(id_field=1).save()
         donottrack_child_func()
-        self.assertEqual(ModelMixinCallStckMngr, log_capt.call_args[0][1])
+        self.assertEqual(ModelMixinCallStckMngr, log_capt.call_args[0][2])
 
     def test_nested_parameterized_donottrack(self, log_capt):
         """ Tests parameterized nested @donottrack
@@ -200,8 +200,8 @@ class TestingCallStackManager(TestCase):
         """
         ModelAnotherCallStckMngr(id_field=1).save()
         donottrack_parent_func()
-        self.assertEqual(ModelAnotherCallStckMngr, log_capt.call_args_list[0][0][1])
-        self.assertEqual(ModelMixinCallStckMngr, log_capt.call_args_list[1][0][1])
+        self.assertEqual(ModelAnotherCallStckMngr, log_capt.call_args_list[0][0][2])
+        self.assertEqual(ModelMixinCallStckMngr, log_capt.call_args_list[1][0][2])
 
     def test_nested_parameterized_donottrack_after(self, log_capt):
         """ Tests parameterized nested @donottrack
@@ -212,8 +212,8 @@ class TestingCallStackManager(TestCase):
         ModelAnotherCallStckMngr(id_field=1).save()
         # test is this- that this should get called.
         ModelAnotherCallStckMngr.objects.filter(id_field=1)
-        self.assertEqual(ModelMixinCallStckMngr, log_capt.call_args_list[0][0][1])
-        self.assertEqual(ModelAnotherCallStckMngr, log_capt.call_args_list[1][0][1])
+        self.assertEqual(ModelMixinCallStckMngr, log_capt.call_args_list[0][0][2])
+        self.assertEqual(ModelAnotherCallStckMngr, log_capt.call_args_list[1][0][2])
 
     def test_donottrack_called_in_func(self, log_capt):
         """ test for function which calls decorated function
@@ -222,10 +222,11 @@ class TestingCallStackManager(TestCase):
         ModelAnotherCallStckMngr(id_field=1).save()
         ModelMixinCallStckMngr(id_field=1).save()
         track_without_donottrack()
-        self.assertEqual(ModelMixinCallStckMngr, log_capt.call_args_list[0][0][1])
-        self.assertEqual(ModelAnotherCallStckMngr, log_capt.call_args_list[1][0][1])
-        self.assertEqual(ModelMixinCallStckMngr, log_capt.call_args_list[2][0][1])
-        self.assertEqual(ModelAnotherCallStckMngr, log_capt.call_args_list[3][0][1])
+        self.assertEqual(ModelMixinCallStckMngr, log_capt.call_args_list[0][0][2])
+        # from nose.tools import set_trace; set_trace()
+        self.assertEqual(ModelAnotherCallStckMngr, log_capt.call_args_list[1][0][2])
+        self.assertEqual(ModelMixinCallStckMngr, log_capt.call_args_list[2][0][2])
+        self.assertEqual(ModelAnotherCallStckMngr, log_capt.call_args_list[3][0][2])
 
     def test_donottrack_child_too(self, log_capt):
         """ Test for inheritance

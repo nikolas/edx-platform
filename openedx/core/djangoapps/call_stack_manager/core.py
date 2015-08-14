@@ -7,6 +7,7 @@ import re
 import collections
 import wrapt
 import types
+import inspect
 from django.db.models import Manager
 
 log = logging.getLogger(__name__)
@@ -55,16 +56,28 @@ def capture_call_stack(entity_name):
     for frame in temp_call_stack:
         final_call_stack += _print(frame)
 
-    if not HALT_TRACKING:
-        if TRACK_FLAG and temp_call_stack not in STACK_BOOK[entity_name]:
-            STACK_BOOK[entity_name].append(temp_call_stack)
-            log.info("Logging new call stack number %s for %s:\n %s", len(STACK_BOOK[entity_name]),
-                     entity_name, final_call_stack)
-    else:
-        if temp_call_stack not in STACK_BOOK[entity_name] and not issubclass(entity_name, tuple(HALT_TRACKING[-1])):
-            STACK_BOOK[entity_name].append(temp_call_stack)
-            log.info("Logging new call stack number %s for %s:\n %s", len(STACK_BOOK[entity_name]),
-                     entity_name, final_call_stack)
+    def _should_get_logged(entity_name):
+        if not HALT_TRACKING:
+            if TRACK_FLAG and temp_call_stack not in STACK_BOOK[entity_name]: # TRACK_FLAG False iff @donottrack is fired
+                return True
+            else:
+                return False
+        else:
+            if inspect.isclass(entity_name):
+                if temp_call_stack not in STACK_BOOK[entity_name] and not issubclass(entity_name, tuple(HALT_TRACKING[-1])):
+                    return True
+                else:
+                    False
+            else:
+                if temp_call_stack not in STACK_BOOK[entity_name] and not entity_name in tuple(HALT_TRACKING[-1]):
+                    return True
+                else:
+                    False
+
+    if _should_get_logged(entity_name):
+        STACK_BOOK[entity_name].append(temp_call_stack)
+        log.info("Logging new call stack number %s for %s:\n %s", len(STACK_BOOK[entity_name]),
+                 entity_name, final_call_stack)
 
 
 class CallStackMixin(object):
@@ -75,14 +88,20 @@ class CallStackMixin(object):
         """
         Logs before save() and overrides respective model API save()
         """
-        capture_call_stack(lambda entity: self.model if hasattr(self, 'model') else type(self))
+        if hasattr(self, 'model'):
+            capture_call_stack(self.model)
+        else:
+            capture_call_stack(type(self))
         return super(CallStackMixin, self).save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         """
         Logs before delete() and overrides respective model API delete()
         """
-        capture_call_stack(lambda entity: self.model if hasattr(self, 'model') else type(self))
+        if hasattr(self, 'model'):
+            capture_call_stack(self.model)
+        else:
+            capture_call_stack(type(self))
         return super(CallStackMixin, self).delete(*args, **kwargs)
 
 
@@ -92,7 +111,10 @@ class CallStackManager(Manager):
     def get_query_set(self):
         """ Override the default queryset API method
         """
-        capture_call_stack(lambda entity: self.model if hasattr(self, 'model') else type(self))
+        if hasattr(self, 'model'):
+            capture_call_stack(self.model)
+        else:
+            capture_call_stack(type(self))
         return super(CallStackManager, self).get_query_set()
 
 
@@ -159,13 +181,13 @@ def donottrack(*entities_not_to_be_tracked):
 
 @wrapt.decorator()
 def trackit(wrapped, instance, args, kwargs):
-    """ Decorator initiating tracking of function
+    """ Decorator 
     """
     capture_call_stack(wrapped.__module__ + "." + wrapped.__name__)
     return wrapped(*args, **kwargs)
 
 
-def track_till_now(*entities_not_to_be_tracked): # TODO: formatting
+def track_till_now(*entities_not_to_be_tracked):
     """ Gets unique calls tacks till now
     """
     @wrapt.decorator
