@@ -16,7 +16,7 @@ from track import contexts
 from track import shim
 from track.models import TrackingLog
 from eventtracking import tracker as eventtracker
-from openedx.core.djangoapps.call_stack_manager import trackit
+
 
 def log_event(event):
     """Capture a event by sending it to the register trackers"""
@@ -71,7 +71,6 @@ def user_track(request):
 
     return HttpResponse('success')
 
-@trackit
 def server_track(request, event_type, event, page=None):
     """
     Log events related to server requests.

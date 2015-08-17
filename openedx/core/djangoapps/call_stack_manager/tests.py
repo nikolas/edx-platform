@@ -266,7 +266,7 @@ class TestingCallStackManager(TestCase):
         """
         var = trackit_func()
         self.assertEqual("hi", var)
-        self.assertEqual(len(log_capt.call_args_list), 1, msg = log_capt.call_args_list)
+        self.assertEqual(len(log_capt.call_args_list), 1)
 
     def test_trackit_instance_method(self, log_capt):
         """ Test track it for instance method

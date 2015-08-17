@@ -182,22 +182,25 @@ def donottrack(*entities_not_to_be_tracked):
 
 
 @wrapt.decorator()
-def trackit(wrapped, instance, args, kwargs): # pylint: disable=W0613
-    """ Decorator 
+def trackit(wrapped, instance, args, kwargs):  # pylint: disable=W0613
+    """ Decorator which tracks logs call stacks
     """
     capture_call_stack(wrapped.__module__ + "." + wrapped.__name__)
     return wrapped(*args, **kwargs)
 
 
-def track_till_now(*entities_not_to_be_tracked):
+def track_till_now(*entities_to_be_tracked):
     """ Gets unique calls tacks till now
+
+    Arguments:
+        entities_to_be_tracked - Entity to be tracked
     """
     @wrapt.decorator
     def real_track_till_now(wrapped, instance, args, kwargs):  # pylint: disable=W0613
         """
         """
-        entities = entities_not_to_be_tracked
+        entities = entities_to_be_tracked
         for entity in entities:
             if entity in STACK_BOOK:
-                log.info("Logging unique call stacks of %s \n %s", entity, STACK_BOOK[entity])
+                log.info("Logging unique call stacks of %s \n %s", entity, STACK_BOOK[entity])  #TODO:CUSTOMIZE OUTPUT?
     return real_track_till_now
