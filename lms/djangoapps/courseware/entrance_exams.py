@@ -92,12 +92,13 @@ def _calculate_entrance_exam_score(user, course_descriptor, exam_modules):
     exam_module_ids = [exam_module.location for exam_module in exam_modules]
 
     # All of the corresponding student module records
-    student_modules = StudentModule.objects.filter(
-        student=user,
-        course_id=course_descriptor.id,
-        module_state_key__in=exam_module_ids,
-    )
     student_module_dict = {}
+    student_modules = StudentModule.objects.chunked_filter(
+        'module_state_key__in',
+        exam_module_ids,
+        student=user,
+        course_id=course_descriptor.id
+    )
     for student_module in student_modules:
         student_module_dict[unicode(student_module.module_state_key)] = {
             'grade': student_module.grade,
