@@ -344,7 +344,6 @@ class DjangoXBlockUserStateClient(XBlockUserStateClient):
             # We just read this object, so we know that we can do an update
             student_module.save(force_update=True)
 
-
     @donottrack(StudentModule, StudentModuleHistory)
     def get_mod_date_many(self, username, block_keys, scope=Scope.user_state, fields=None):
         """

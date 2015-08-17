@@ -59,7 +59,7 @@ def donottrack_subclass():
 
 
 def track_without_donottrack():
-    """ function calling QuerySetAPI, another function, again QuerySetAPI
+    """ Function calling QuerySetAPI, another function, again QuerySetAPI
     """
     ModelAnotherCallStckMngr.objects.filter(id_field=1)
     donottrack_child_func()
@@ -93,7 +93,6 @@ def donottrack_func_parent():
     """ non-parameterized @donottrack decorated function calling child function
     """
     ModelMixin.objects.all()
-    from nose.tools import set_trace; set_trace()
     donottrack_func_child()
     ModelMixin.objects.filter(id_field=1)
 
@@ -103,7 +102,6 @@ def donottrack_func_child():
     """ child decorated non-parameterized function
     """
     # Should not be tracked
-    from nose.tools import set_trace; set_trace()
     ModelMixin.objects.all()
 
 
@@ -141,7 +139,6 @@ class ClassReturingValue(object):
     def donottrack_check_with_return(self, argument=43):
         """ function that returns something i.e. a wrapped function returning some value
         """
-        #from nose.tools import set_trace; set_trace()
         return 42 + argument
 
 
@@ -177,9 +174,7 @@ class TestingCallStackManager(TestCase):
         classes with CallStackManager should get logged.
         """
         ModelAnotherCallStckMngr(id_field=1).save()
-        from nose.tools import set_trace; set_trace()
         ModelAnotherCallStckMngr.objects.filter(id_field=1)
-        from nose.tools import set_trace; set_trace()
         self.assertEqual(ModelAnotherCallStckMngr, log_capt.call_args[0][2])
 
     def test_withoutqueryset(self, log_capt):
@@ -196,9 +191,7 @@ class TestingCallStackManager(TestCase):
         """ Test for @donottrack
         calls in decorated function should not get logged
         """
-        from nose.tools import set_trace; set_trace()
         donottrack_func_parent()
-        from nose.tools import set_trace; set_trace()
         self.assertEqual(len(log_capt.call_args_list), 0)
 
     def test_parameterized_donottrack(self, log_capt):

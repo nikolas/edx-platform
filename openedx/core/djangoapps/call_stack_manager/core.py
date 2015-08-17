@@ -58,7 +58,7 @@ def capture_call_stack(entity_name):
 
     def _should_get_logged(entity_name):
         if not HALT_TRACKING:
-            if TRACK_FLAG and temp_call_stack not in STACK_BOOK[entity_name]: # TRACK_FLAG False iff @donottrack is fired
+            if TRACK_FLAG and temp_call_stack not in STACK_BOOK[entity_name]:  # TRACK_FLAG False iff @donottrack
                 return True
             else:
                 return False
@@ -68,8 +68,8 @@ def capture_call_stack(entity_name):
                     return True
                 else:
                     return False
-            else: # Assumption : Everything other than "class" will be passed as string
-                if temp_call_stack not in STACK_BOOK[entity_name] and not entity_name in tuple(HALT_TRACKING[-1]):
+            else:  # Assumption : Everything other than "class" will be passed as string
+                if temp_call_stack not in STACK_BOOK[entity_name] and entity_name not in tuple(HALT_TRACKING[-1]):
                     return True
                 else:
                     return False
@@ -138,7 +138,7 @@ def donottrack(*entities_not_to_be_tracked):
             kwargs - The dictionary of keyword arguments supplied when the decorated function was called.
 
         """
-        if entities_not_to_be_tracked :
+        if entities_not_to_be_tracked:
             global HALT_TRACKING  # pylint: disable=W0603
             HALT_TRACKING.append(entities_not_to_be_tracked)
             HALT_TRACKING[-1] = list(set([x for sublist in HALT_TRACKING for x in sublist]))
@@ -159,7 +159,7 @@ def donottrack(*entities_not_to_be_tracked):
                 HALT_TRACKING.pop()
                 return return_value
 
-        else: # if donottrack is not parameterized
+        else:  # if donottrack is not parameterized
             global TRACK_FLAG  # pylint: disable=W0603
             TRACK_FLAG = False
             return_value = wrapped(*args, **kwargs)
@@ -182,7 +182,7 @@ def donottrack(*entities_not_to_be_tracked):
 
 
 @wrapt.decorator()
-def trackit(wrapped, instance, args, kwargs):
+def trackit(wrapped, instance, args, kwargs): # pylint: disable=W0613
     """ Decorator 
     """
     capture_call_stack(wrapped.__module__ + "." + wrapped.__name__)
