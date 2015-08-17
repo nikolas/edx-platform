@@ -1,11 +1,13 @@
 """
 Test cases for Call Stack Manager
 """
+import collections
 from mock import patch
 from django.db import models
 from django.test import TestCase
 
 from openedx.core.djangoapps.call_stack_manager import donottrack, CallStackManager, CallStackMixin, trackit
+from openedx.core.djangoapps.call_stack_manager import core
 
 
 class ModelMixinCallStckMngr(CallStackMixin, models.Model):
@@ -150,6 +152,10 @@ class TestingCallStackManager(TestCase):
     1. Tests CallStackManager QuerySetAPI functionality
     2. Tests @donottrack decorator
     """
+    def setUp(self):
+        core.TRACK_FLAG = True
+        core.STACK_BOOK = collections.defaultdict(list)
+        core.HALT_TRACKING = []
 
     def test_save(self, log_capt):
         """ tests save() of CallStackMixin/ applies same for delete()
@@ -253,14 +259,14 @@ class TestingCallStackManager(TestCase):
             ModelMixinCallStckMngr(id_field=1).save()
         self.assertEqual(len(log_capt.call_args_list), 1)
 
-    # def test_donottrack_with_return(self, log_capt):
-    #     """ Test for @donottrack
-    #     Checks if wrapper function returns the same value as wrapped function
-    #     """
-    #     class_returning_value = ClassReturingValue()
-    #     everything = class_returning_value.donottrack_check_with_return(argument=42)
-    #     self.assertEqual(everything, 84)
-    #     self.assertEqual(len(log_capt.call_args_list), 0)
+    def test_donottrack_with_return(self, log_capt):
+        """ Test for @donottrack
+        Checks if wrapper function returns the same value as wrapped function
+        """
+        class_returning_value = ClassReturingValue()
+        everything = class_returning_value.donottrack_check_with_return(argument=42)
+        self.assertEqual(everything, 84)
+        self.assertEqual(len(log_capt.call_args_list), 0)
 
     def test_trackit_func(self, log_capt):
         """ Test track it for function
