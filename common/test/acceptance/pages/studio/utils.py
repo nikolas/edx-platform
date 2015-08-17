@@ -177,7 +177,7 @@ def get_codemirror_value(page, index=0, find_prefix="$"):
     )
 
 
-def confirm_prompt(page, cancel=False):
+def confirm_prompt(page, cancel=False, require_notification=None):
     """
     Ensures that a modal prompt and confirmation button are visible, then clicks the button. The prompt is canceled iff
     cancel is True.
@@ -185,7 +185,8 @@ def confirm_prompt(page, cancel=False):
     page.wait_for_element_visibility('.prompt', 'Prompt is visible')
     confirmation_button_css = '.prompt .action-' + ('secondary' if cancel else 'primary')
     page.wait_for_element_visibility(confirmation_button_css, 'Confirmation button is visible')
-    click_css(page, confirmation_button_css, require_notification=(not cancel))
+    require_notification = (not cancel) if require_notification is None else require_notification
+    click_css(page, confirmation_button_css, require_notification=require_notification)
 
 
 def set_input_value(page, css, value):

@@ -77,7 +77,7 @@
                     ViewUtils.confirmThenRunOperation(
                         gettext('Leave this team?'),
                         gettext('Leaving a team means you can no longer post on this team, and your spot is opened for another learner.'),
-                        gettext('Leave'),
+                        gettext('Confirm'),
                         function() {
                             $.ajax({
                                 type: 'DELETE',
