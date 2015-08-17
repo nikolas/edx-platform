@@ -3,11 +3,13 @@
  */
 ;(function (define) {
     'use strict';
-    define(['backbone', 'underscore', 'gettext', 'teams/js/views/team_discussion',
+    define(['backbone', 'underscore', 'gettext',
+            'js/views/view_utils',
+            'teams/js/views/team_discussion',
             'teams/js/views/team_utils',
             'text!teams/templates/team-profile.underscore',
             'text!teams/templates/team-member.underscore'],
-        function (Backbone, _, gettext, TeamDiscussionView, TeamUtils, teamTemplate, teamMemberTemplate) {
+        function (Backbone, _, gettext, ViewUtils, TeamDiscussionView, TeamUtils, teamTemplate, teamMemberTemplate) {
             var TeamProfileView = Backbone.View.extend({
 
                 errorMessage: gettext("An error occurred. Try again."),
@@ -72,20 +74,27 @@
                 leaveTeam: function (event) {
                     event.preventDefault();
                     var view = this;
-                    $.ajax({
-                        type: 'DELETE',
-                        url: view.teamMembershipDetailUrl.replace('team_id', view.model.get('id'))
-                    }).done(function (data) {
-                        view.model.fetch()
-                            .done(function() {
-                                view.teamEvents.trigger('teams:update', {
-                                    action: 'leave',
-                                    team: view.model
-                                });
+                    ViewUtils.confirmThenRunOperation(
+                        gettext('Leave this team?'),
+                        gettext('Leaving a team means you can no longer post on this team, and your spot is opened for another learner.'),
+                        gettext('Leave'),
+                        function() {
+                            $.ajax({
+                                type: 'DELETE',
+                                url: view.teamMembershipDetailUrl.replace('team_id', view.model.get('id'))
+                            }).done(function (data) {
+                                view.model.fetch()
+                                    .done(function() {
+                                        view.teamEvents.trigger('teams:update', {
+                                            action: 'leave',
+                                            team: view.model
+                                        });
+                                    });
+                            }).fail(function (data) {
+                                TeamUtils.parseAndShowMessage(data, view.errorMessage);
                             });
-                    }).fail(function (data) {
-                        TeamUtils.parseAndShowMessage(data, view.errorMessage);
-                    });
+                        }
+                    );
                 }
             });
 

@@ -53,6 +53,14 @@ textarea {
   height: 60px;
 }
 
+// fake...temporary mixin...added here because @include button
+// at line 68 below is using mixing from burbon but we also have
+// a mixin with same name in common/static/sass/_mixins-inherited.scss
+// due to which sass compile failing
+@mixin button ($style: simple, $base-color: #4294f0) {
+
+}
+
 input[type="submit"],
 input[type="button"],
 button,.button {

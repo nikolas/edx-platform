@@ -12,11 +12,16 @@
 // base - starter
 @import 'base/base';
 
+@import 'mixins';
+@import 'mixins-inherited';
+
 // base - elements
 @import 'elements/typography';
 @import 'elements/controls';
 @import 'elements/system-feedback';
 @import 'elements/creative-commons';
+
+@import 'shared/system-feedback';
 
 // shared - course
 @import 'shared/fields';

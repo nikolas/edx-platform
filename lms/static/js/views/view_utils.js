@@ -1,7 +1,7 @@
 ;(function (define) {
     'use strict';
 define(["jquery", "gettext", "common/js/components/views/feedback_prompt"],
-    function ($, gettext, NotificationView, PromptView) {
+    function ($, gettext, PromptView) {
         var confirmThenRunOperation;
 
         /**
